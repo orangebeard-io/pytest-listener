@@ -25,7 +25,7 @@ Configuration is shared with the other Orangebeard listeners. Environment variab
 
 ```json
 {
-  "endpoint": "https://your-company.orangebeard.app",
+  "endpoint": "https://app.orangebeard.io/{your-organization}",
   "token": "00000000-0000-0000-0000-000000000000",
   "project": "my-project",
   "testset": "nightly",
