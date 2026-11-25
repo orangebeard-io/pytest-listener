@@ -20,4 +20,4 @@ jobs:
       - run: python -m pytest
         env:
           ORANGEBEARD_TOKEN: ${{ secrets.ORANGEBEARD_TOKEN }}
-          ORANGEBEARD_ATTRIBUTES: python:${{ matrix.python-version }};ci
+          ORANGEBEARD_ATTRIBUTES: python:${{ matrix.python-version }};pipelineUrl:${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
