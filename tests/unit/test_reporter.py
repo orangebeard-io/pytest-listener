@@ -163,8 +163,8 @@ def test_parametrize_id_stays_out_of_the_test_name(reporter, client):
     test, _ = client.of('start_test')[0]
     assert test.testName == 'test_boundary'
     # description carries a clipped version, the log the full value
-    assert test.description.startswith('Checks bounds.')
-    assert 'Parameters: ' in test.description and len(test.description) < 1000
+    assert test.description.startswith('Checks bounds.\n\nParameters: x')
+    assert len(test.description) == len('Checks bounds.\n\nParameters: ') + 2000 and test.description.endswith('…')
     assert any(l.message == f'Parameters: {huge}' for l in client.logs())
 
 
@@ -190,3 +190,26 @@ def test_iteration_suffix_never_pushes_the_name_over_the_limit(reporter, client)
     reporter.start_test('t.py::' + 'n' * 2000 + '[1]', iteration=12)
     name = client.of('start_test')[0][0].testName
     assert len(name) == 1024 and name.endswith(' - iteration #12')
+
+
+def test_descriptions_are_clipped_to_the_orangebeard_limit(reporter, client):
+    reporter.start_run()
+    reporter.start_test('t.py::test_a', description='d' * 10000)
+    reporter.start_step('s', description='e' * 10000)
+    assert len(client.of('start_test')[0][0].description) == 4096
+    assert len(client.of('start_step')[0][0].description) == 4096
+
+
+def test_parameters_survive_a_huge_docstring(reporter, client):
+    reporter.start_run()
+    reporter.start_test('t.py::test_a[p1]', description='d' * 10000)
+    reporter.start_test('t.py::test_a[p2]', description='d' * 10000)
+    first = client.of('start_test')[0][0].description
+    assert len(first) <= 4096 and first.endswith('\n\nParameters: p1')
+
+
+def test_run_description_is_clipped(client):
+    params = OrangebeardParameters(token='t', endpoint='e', project='p', testset='s', description='r' * 9000)
+    reporter = OrangebeardReporter(client, Settings(params=params))
+    reporter.start_run()
+    assert len(client.of('start_test_run')[0][0].description) == 4096

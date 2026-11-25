@@ -109,7 +109,8 @@ Parametrized tests: the parameter id can hold arbitrary data and a changing name
 never becomes part of the name. A function that runs more than once with different data is reported as
 `test_checkout - iteration #1`, `... #2`, ... (Orangebeard treats identical names as retries of one test). The
 numbers follow the collection order and do not change with `-k`/`-m`; a function with a single case keeps its plain
-name. The parameters are added to the description (clipped) and logged in full. Selecting one case by node id
+name. The parameters are added to the description (clipped to 2000 characters) and logged in full. Descriptions are
+clipped to Orangebeard's 4096 character limit and names to 1024. Selecting one case by node id
 (`pytest file.py::test_x[a]`) collects only that case, so it is reported without an iteration number.
 
 A test fails on any setup error, test failure, teardown error or strict xpass. Skipped and xfailed tests are

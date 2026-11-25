@@ -21,11 +21,16 @@ from orangebeard_pytest import mapping
 from orangebeard_pytest.config import Settings
 
 
-MAX_PARAMS_IN_DESCRIPTION = 500
+MAX_PARAMS_IN_DESCRIPTION = 2000
 
 
 def _now() -> datetime:
     return datetime.now().astimezone()
+
+
+def _describe(description: Optional[str]) -> Optional[str]:
+    """Descriptions longer than Orangebeard accepts would get the whole call rejected."""
+    return None if description is None else mapping.clip(description, mapping.MAX_DESCRIPTION_LENGTH)
 
 
 def _safe(method):
@@ -66,7 +71,7 @@ class OrangebeardReporter:
     def start_run(self):
         params = self.settings.params
         self.run_uuid = self.client.start_test_run(
-            StartTestRun(params.testset, _now(), params.description, list(params.attributes or [])))
+            StartTestRun(params.testset, _now(), _describe(params.description), list(params.attributes or [])))
 
     @_safe
     def finish_run(self):
@@ -88,9 +93,13 @@ class OrangebeardReporter:
         suite_uuid = self._ensure_suites(suites)
         if params:  # the parameters are data, not identity: description (clipped) + full value as a log
             summary = f'Parameters: {mapping.clip(params, MAX_PARAMS_IN_DESCRIPTION)}'
-            description = f'{description}\n\n{summary}' if description else summary
+            if description:  # keep the parameters visible even when the docstring is huge
+                room = max(mapping.MAX_DESCRIPTION_LENGTH - len(summary) - 2, 0)
+                description = f'{mapping.clip(description, room)}\n\n{summary}'
+            else:
+                description = summary
         self.test_uuid = self.client.start_test(
-            StartTest(self.run_uuid, suite_uuid, name, _now(), TestType.TEST, description, attributes or None))
+            StartTest(self.run_uuid, suite_uuid, name, _now(), TestType.TEST, _describe(description), attributes or None))
         self._steps = []
         if params:
             self.log(f'Parameters: {params}')
@@ -125,7 +134,8 @@ class OrangebeardReporter:
         if not self.in_test:
             return None
         step_uuid = self.client.start_step(
-            StartStep(self.run_uuid, self.test_uuid, name, _now(), self.current_step, description))
+            StartStep(self.run_uuid, self.test_uuid, mapping.clip(name, mapping.MAX_NAME_LENGTH), _now(), self.current_step,
+                      _describe(description)))
         self._steps.append(step_uuid)
         return step_uuid
 

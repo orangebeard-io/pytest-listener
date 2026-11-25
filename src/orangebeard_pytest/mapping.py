@@ -11,6 +11,7 @@ BUILTIN_MARKERS = {'parametrize', 'skip', 'skipif', 'xfail', 'usefixtures', 'fil
 
 
 MAX_NAME_LENGTH = 1024  # Orangebeard rejects suite/test names longer than this
+MAX_DESCRIPTION_LENGTH = 4096  # listener API: description maxLength (tests, steps, suites, runs)
 
 
 def clip(text: str, limit: int) -> str:
