@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orangebeard-pytest"
+version = "0.1.0"
+description = "Orangebeard reporting plugin for pytest (including pytest-playwright)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["pytest", "orangebeard", "test reporting", "playwright"]
+classifiers = [
+    "Framework :: Pytest",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "pytest>=7.4",
+    "orangebeard-client>=2.8.0",
+]
+
+[[project.authors]]
+name = "Orangebeard"
+email = "info@orangebeard.io"
+
+[project.optional-dependencies]
+test = ["pytest-playwright>=0.5"]
+
+[project.entry-points.pytest11]
+orangebeard = "orangebeard_pytest.plugin"
+
+[project.urls]
+Homepage = "https://github.com/orangebeard-io/pytest-listener"
+"Bug Tracker" = "https://github.com/orangebeard-io/pytest-listener/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Do not share pytest-playwright between the outer run and the in-process inner runs of pytester.
+addopts = "-p no:playwright"
+markers = ["playwright_browser: needs an installed Playwright browser (run `playwright install chromium`)"]

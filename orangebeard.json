@@ -1,0 +1,6 @@
+{
+  "endpoint": "https://app.orangebeard.io/orangebeard",
+  "project": "listeners",
+  "testset": "pytest-listener",
+  "description": "orangebeard-pytest own test suite"
+}
