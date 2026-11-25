@@ -77,10 +77,14 @@ class OrangebeardReporter:
     # ------------------------------------------------------------------ test
 
     @_safe
-    def start_test(self, nodeid: str, description: Optional[str] = None, attributes=None):
+    def start_test(self, nodeid: str, description: Optional[str] = None, attributes=None,
+                   iteration: Optional[int] = None):
         if self.run_uuid is None:
             return None
         suites, name, params = mapping.split_nodeid(nodeid)
+        if iteration is not None:  # same function, different data: must not look like a retry
+            suffix = f' - iteration #{iteration}'
+            name = mapping.clip(name, mapping.MAX_NAME_LENGTH - len(suffix)) + suffix
         suite_uuid = self._ensure_suites(suites)
         if params:  # the parameters are data, not identity: description (clipped) + full value as a log
             summary = f'Parameters: {mapping.clip(params, MAX_PARAMS_IN_DESCRIPTION)}'

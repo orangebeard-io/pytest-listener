@@ -168,10 +168,25 @@ def test_parametrize_id_stays_out_of_the_test_name(reporter, client):
     assert any(l.message == f'Parameters: {huge}' for l in client.logs())
 
 
-def test_parametrized_tests_share_one_name(reporter, client):
+def test_iterations_get_a_numbered_name_suffix(reporter, client):
     reporter.start_run()
-    for case in ('1', '2'):
-        reporter.start_test(f't.py::test_x[{case}]')
+    for case, number in (('1', 1), ('2', 2)):
+        reporter.start_test(f't.py::test_x[{case}]', iteration=number)
         reporter.finish_test(Status.PASSED)
-    assert [t.testName for t, _ in client.of('start_test')] == ['test_x', 'test_x']
+    assert [t.testName for t, _ in client.of('start_test')] == ['test_x - iteration #1', 'test_x - iteration #2']
     assert [t.description for t, _ in client.of('start_test')] == ['Parameters: 1', 'Parameters: 2']
+
+
+def test_a_rerun_of_the_same_case_keeps_its_name_so_orangebeard_sees_a_retry(reporter, client):
+    reporter.start_run()
+    for _ in range(2):
+        reporter.start_test('t.py::test_x[1]', iteration=1)
+        reporter.finish_test(Status.FAILED)
+    assert [t.testName for t, _ in client.of('start_test')] == ['test_x - iteration #1'] * 2
+
+
+def test_iteration_suffix_never_pushes_the_name_over_the_limit(reporter, client):
+    reporter.start_run()
+    reporter.start_test('t.py::' + 'n' * 2000 + '[1]', iteration=12)
+    name = client.of('start_test')[0][0].testName
+    assert len(name) == 1024 and name.endswith(' - iteration #12')

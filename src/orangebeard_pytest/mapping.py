@@ -35,6 +35,21 @@ def split_nodeid(nodeid: str) -> Tuple[List[str], str, str]:
     return [clip(s, MAX_NAME_LENGTH) for s in suites + rest[:-1]], clip(rest[-1], MAX_NAME_LENGTH), params
 
 
+def iteration_numbers(nodeids: List[str]) -> Dict[str, int]:
+    """Number (from 1) the cases of a test function that is collected more than once (parametrized).
+
+    Orangebeard treats identically named tests as retries of each other, so different data needs different names.
+    Functions that occur once are not included. Pass the full collection (before -k/-m deselection) so that the
+    numbers do not depend on what is selected.
+    """
+    groups: Dict[str, List[str]] = {}
+    for nodeid in nodeids:
+        bracket = nodeid.find('[')
+        groups.setdefault(nodeid if bracket < 0 else nodeid[:bracket], []).append(nodeid)
+    return {nodeid: number for members in groups.values() if len(members) > 1
+            for number, nodeid in enumerate(members, start=1)}
+
+
 def phase_status(outcome: str) -> TestStatus:
     return {'passed': TestStatus.PASSED, 'failed': TestStatus.FAILED, 'skipped': TestStatus.SKIPPED}.get(
         outcome, TestStatus.FAILED)

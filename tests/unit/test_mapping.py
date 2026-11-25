@@ -120,3 +120,23 @@ def test_marker_attributes_skip_builtin_markers():
         SimpleNamespace(name='usefixtures'), SimpleNamespace(name='smoke'), SimpleNamespace(name='slow')]))
     attrs = mapping.marker_attributes(item)
     assert [(a.key, a.value) for a in attrs] == [(None, 'smoke'), (None, 'slow')]
+
+
+def test_iterations_number_every_case_of_a_function_that_runs_more_than_once():
+    ids = ['t.py::test_a[x]', 't.py::test_b', 't.py::test_a[y]', 't.py::TestC::test_a[x]', 't.py::test_a[z]']
+    assert mapping.iteration_numbers(ids) == {
+        't.py::test_a[x]': 1, 't.py::test_a[y]': 2, 't.py::test_a[z]': 3}
+
+
+def test_a_single_parametrized_case_gets_no_iteration():
+    assert mapping.iteration_numbers(['t.py::test_a[only]', 't.py::test_b']) == {}
+
+
+def test_iterations_are_per_function_and_class():
+    ids = ['t.py::TestA::test_x[1]', 't.py::TestB::test_x[1]', 't.py::TestA::test_x[2]']
+    assert mapping.iteration_numbers(ids) == {'t.py::TestA::test_x[1]': 1, 't.py::TestA::test_x[2]': 2}
+
+
+def test_params_containing_brackets_still_group_by_function():
+    ids = ['t.py::test_a[[1, 2]]', 't.py::test_a[[3]]']
+    assert mapping.iteration_numbers(ids) == {'t.py::test_a[[1, 2]]': 1, 't.py::test_a[[3]]': 2}

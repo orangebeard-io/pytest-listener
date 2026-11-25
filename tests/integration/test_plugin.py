@@ -68,9 +68,10 @@ def test_run_lifecycle_and_structure(pytester, fake_client):
     assert fake_client.finish_status_of_test('test_fail') == Status.FAILED
     assert fake_client.finish_status_of_test('test_skip') == Status.SKIPPED
     assert fake_client.finish_status_of_test('test_xfail') == Status.SKIPPED
-    params = [(t.testName, t.description) for t, _ in fake_client.of('start_test') if t.testName == 'test_param']
-    assert params == [('test_param', 'Parameters: 1'), ('test_param', 'Parameters: 2')]
+    params = [(t.testName, t.description) for t, _ in fake_client.of('start_test') if t.testName.startswith('test_param')]
+    assert params == [('test_param - iteration #1', 'Parameters: 1'), ('test_param - iteration #2', 'Parameters: 2')]
     assert not any('[' in t.testName for t, _ in fake_client.of('start_test'))
+    assert 'test_pass' in [t.testName for t, _ in fake_client.of('start_test')]  # no suffix without iterations
     assert fake_client.finish_status_of_test('test_in_class') == Status.PASSED
 
 
@@ -319,3 +320,27 @@ def test_terminal_summary_mentions_orangebeard(pytester, fake_client):
     pytester.makepyfile('def test_a():\n    pass\n')
     result = run(pytester)
     result.stdout.fnmatch_lines(['*Orangebeard*'])
+
+
+def test_iteration_numbers_do_not_change_when_tests_are_deselected(pytester, fake_client):
+    pytester.makepyfile('''
+        import pytest
+
+        @pytest.mark.parametrize("n", ["alpha", "bravo", "charlie"])
+        def test_data(n):
+            pass
+    ''')
+    run(pytester, '-k', 'bravo')
+    assert [t.testName for t, _ in fake_client.of('start_test')] == ['test_data - iteration #2']
+
+
+def test_a_single_parametrized_case_keeps_the_plain_name(pytester, fake_client):
+    pytester.makepyfile('''
+        import pytest
+
+        @pytest.mark.parametrize("n", ["only"])
+        def test_data(n):
+            pass
+    ''')
+    run(pytester)
+    assert [t.testName for t, _ in fake_client.of('start_test')] == ['test_data']

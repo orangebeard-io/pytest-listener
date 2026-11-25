@@ -96,7 +96,7 @@ Open a downloaded trace with `playwright show-trace trace.zip`.
 suite  tests            (directory)
  └ suite  test_cart.py  (module)
     └ suite  TestCart   (class)
-       └ test  test_checkout
+       └ test  test_checkout - iteration #1   (when parametrized)
           ├ step  setup
           │  └ step  fixture: my_database
           ├ step  call
@@ -105,8 +105,12 @@ suite  tests            (directory)
           └ step  teardown
 ```
 
-Parametrized tests keep the plain function name (`test_checkout`): the parameter id can hold arbitrary data and a
-changing name would break the test's history. The parameters are added to the description (clipped) and logged in full.
+Parametrized tests: the parameter id can hold arbitrary data and a changing name would break a test's history, so it
+never becomes part of the name. A function that runs more than once with different data is reported as
+`test_checkout - iteration #1`, `... #2`, ... (Orangebeard treats identical names as retries of one test). The
+numbers follow the collection order and do not change with `-k`/`-m`; a function with a single case keeps its plain
+name. The parameters are added to the description (clipped) and logged in full. Selecting one case by node id
+(`pytest file.py::test_x[a]`) collects only that case, so it is reported without an iteration number.
 
 A test fails on any setup error, test failure, teardown error or strict xpass. Skipped and xfailed tests are
 `SKIPPED`.

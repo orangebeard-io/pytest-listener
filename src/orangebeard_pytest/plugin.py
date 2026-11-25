@@ -89,8 +89,14 @@ class OrangebeardPlugin:
         self.reports = {}
         self.watchers = [artifacts.DirectoryWatcher(path) for path in settings.watch_dirs]
         self._previous_context = None
+        self.iterations = {}
 
     # ------------------------------------------------------------------ run
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_collection_modifyitems(self, session, config, items):
+        # before -k/-m deselect anything: iteration numbers must not depend on the selection
+        self.iterations = mapping.iteration_numbers([item.nodeid for item in items])
 
     def pytest_sessionstart(self, session):
         try:
@@ -123,7 +129,8 @@ class OrangebeardPlugin:
         reporter = self.reporter
         if reporter is None:
             return (yield)
-        reporter.start_test(item.nodeid, self._description(item), self._attributes(item))
+        reporter.start_test(item.nodeid, self._description(item), self._attributes(item),
+                            self.iterations.get(item.nodeid))
         self.reports = {}
         before = [watcher.snapshot() for watcher in self.watchers]
         try:
