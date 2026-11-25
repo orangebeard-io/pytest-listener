@@ -21,6 +21,9 @@ from orangebeard_pytest import mapping
 from orangebeard_pytest.config import Settings
 
 
+MAX_PARAMS_IN_DESCRIPTION = 500
+
+
 def _now() -> datetime:
     return datetime.now().astimezone()
 
@@ -77,11 +80,16 @@ class OrangebeardReporter:
     def start_test(self, nodeid: str, description: Optional[str] = None, attributes=None):
         if self.run_uuid is None:
             return None
-        suites, name = mapping.split_nodeid(nodeid)
+        suites, name, params = mapping.split_nodeid(nodeid)
         suite_uuid = self._ensure_suites(suites)
+        if params:  # the parameters are data, not identity: description (clipped) + full value as a log
+            summary = f'Parameters: {mapping.clip(params, MAX_PARAMS_IN_DESCRIPTION)}'
+            description = f'{description}\n\n{summary}' if description else summary
         self.test_uuid = self.client.start_test(
             StartTest(self.run_uuid, suite_uuid, name, _now(), TestType.TEST, description, attributes or None))
         self._steps = []
+        if params:
+            self.log(f'Parameters: {params}')
         return self.test_uuid
 
     def _ensure_suites(self, suites: List[str]):

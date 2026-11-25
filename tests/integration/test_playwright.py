@@ -43,14 +43,14 @@ def test_screenshot_trace_and_video_are_attached(pytester, fake_client, browser_
     for attachment, _ in fake_client.of('send_attachment'):
         by_test.setdefault(attachment.AttachmentMetaData.testUUID, []).append(attachment.AttachmentFile.name)
 
-    for test_name in ('test_passes[chromium]', 'test_fails[chromium]'):
+    for test_name in ('test_passes', 'test_fails'):
         names = by_test[fake_client.test_uuid(test_name)]
         assert 'trace.zip' in names
         assert any(n.endswith('.png') for n in names)
         assert any(n.endswith('.webm') for n in names)
 
-    assert fake_client.finish_status_of_test('test_passes[chromium]').value == 'PASSED'
-    assert fake_client.finish_status_of_test('test_fails[chromium]').value == 'FAILED'
+    assert fake_client.finish_status_of_test('test_passes').value == 'PASSED'
+    assert fake_client.finish_status_of_test('test_fails').value == 'FAILED'
     assert 'Open the page' in fake_client.step_names()
     assert any('Goodbye' in l.message for l in fake_client.logs())
 
@@ -59,5 +59,5 @@ def test_only_on_failure_artifacts_follow_the_playwright_options(pytester, fake_
     pytester.makepyfile(PAGE_TEST)
     run(pytester, '--screenshot', 'only-on-failure')
     names = {(a.AttachmentMetaData.testUUID, a.AttachmentFile.name) for a, _ in fake_client.of('send_attachment')}
-    assert any(t == fake_client.test_uuid('test_fails[chromium]') and n.endswith('.png') for t, n in names)
-    assert not any(t == fake_client.test_uuid('test_passes[chromium]') for t, _ in names)
+    assert any(t == fake_client.test_uuid('test_fails') and n.endswith('.png') for t, n in names)
+    assert not any(t == fake_client.test_uuid('test_passes') for t, _ in names)

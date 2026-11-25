@@ -154,3 +154,24 @@ def test_calls_outside_a_test_are_ignored(reporter, client):
     assert reporter.start_step('x') is None
     reporter.attach('a.txt', b'x')
     assert client.logs() == [] and client.of('start_step') == []
+
+
+def test_parametrize_id_stays_out_of_the_test_name(reporter, client):
+    huge = 'x' * 3000
+    reporter.start_run()
+    reporter.start_test(f't.py::test_boundary[{huge}]', description='Checks bounds.')
+    test, _ = client.of('start_test')[0]
+    assert test.testName == 'test_boundary'
+    # description carries a clipped version, the log the full value
+    assert test.description.startswith('Checks bounds.')
+    assert 'Parameters: ' in test.description and len(test.description) < 1000
+    assert any(l.message == f'Parameters: {huge}' for l in client.logs())
+
+
+def test_parametrized_tests_share_one_name(reporter, client):
+    reporter.start_run()
+    for case in ('1', '2'):
+        reporter.start_test(f't.py::test_x[{case}]')
+        reporter.finish_test(Status.PASSED)
+    assert [t.testName for t, _ in client.of('start_test')] == ['test_x', 'test_x']
+    assert [t.description for t, _ in client.of('start_test')] == ['Parameters: 1', 'Parameters: 2']

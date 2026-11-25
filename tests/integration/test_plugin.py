@@ -68,8 +68,9 @@ def test_run_lifecycle_and_structure(pytester, fake_client):
     assert fake_client.finish_status_of_test('test_fail') == Status.FAILED
     assert fake_client.finish_status_of_test('test_skip') == Status.SKIPPED
     assert fake_client.finish_status_of_test('test_xfail') == Status.SKIPPED
-    assert fake_client.finish_status_of_test('test_param[1]') == Status.PASSED
-    assert fake_client.finish_status_of_test('test_param[2]') == Status.PASSED
+    params = [(t.testName, t.description) for t, _ in fake_client.of('start_test') if t.testName == 'test_param']
+    assert params == [('test_param', 'Parameters: 1'), ('test_param', 'Parameters: 2')]
+    assert not any('[' in t.testName for t, _ in fake_client.of('start_test'))
     assert fake_client.finish_status_of_test('test_in_class') == Status.PASSED
 
 

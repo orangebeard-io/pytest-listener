@@ -8,24 +8,36 @@ from orangebeard_pytest import mapping
 
 
 def test_suite_chain_for_function_in_module():
-    assert mapping.split_nodeid('test_a.py::test_x') == (['test_a.py'], 'test_x')
+    assert mapping.split_nodeid('test_a.py::test_x') == (['test_a.py'], 'test_x', '')
 
 
 def test_suite_chain_includes_directories_and_classes():
-    suites, test = mapping.split_nodeid('pkg/sub/test_mod.py::TestThing::test_x')
+    suites, test, _ = mapping.split_nodeid('pkg/sub/test_mod.py::TestThing::test_x')
     assert suites == ['pkg', 'sub', 'test_mod.py', 'TestThing']
     assert test == 'test_x'
 
 
 def test_suite_chain_supports_nested_classes():
-    suites, test = mapping.split_nodeid('test_mod.py::Outer::Inner::test_x')
+    suites, test, _ = mapping.split_nodeid('test_mod.py::Outer::Inner::test_x')
     assert suites == ['test_mod.py', 'Outer', 'Inner']
 
 
-def test_parametrize_ids_are_part_of_the_test_name_and_may_contain_separators():
-    suites, test = mapping.split_nodeid('pkg/test_mod.py::TestA::test_x[a/b::c-1]')
+def test_parametrize_ids_are_never_part_of_the_test_name_and_may_contain_separators():
+    suites, test, params = mapping.split_nodeid('pkg/test_mod.py::TestA::test_x[a/b::c-1]')
     assert suites == ['pkg', 'test_mod.py', 'TestA']
-    assert test == 'test_x[a/b::c-1]'
+    assert test == 'test_x'
+    assert params == 'a/b::c-1'
+
+
+def test_huge_parametrize_id_does_not_leak_into_the_name():
+    suites, test, params = mapping.split_nodeid('test_m.py::test_boundary[' + 'x' * 5000 + ']')
+    assert test == 'test_boundary' and params == 'x' * 5000
+
+
+def test_names_are_clipped_to_the_orangebeard_limit():
+    assert len(mapping.clip('y' * 5000, 1024)) == 1024
+    assert mapping.clip('short', 1024) == 'short'
+    assert mapping.clip('y' * 20, 10).endswith('…')
 
 
 def report(when, outcome, wasxfail=None):

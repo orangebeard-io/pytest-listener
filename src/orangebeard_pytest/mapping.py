@@ -10,18 +10,29 @@ from orangebeard.entity.TestStatus import TestStatus
 BUILTIN_MARKERS = {'parametrize', 'skip', 'skipif', 'xfail', 'usefixtures', 'filterwarnings'}
 
 
-def split_nodeid(nodeid: str) -> Tuple[List[str], str]:
-    """'pkg/test_m.py::TestA::test_x[p]' -> (['pkg', 'test_m.py', 'TestA'], 'test_x[p]')
+MAX_NAME_LENGTH = 1024  # Orangebeard rejects suite/test names longer than this
 
-    Parametrize ids (everything from the first '[') may contain '/' or '::' and are never split.
+
+def clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit - 1] + '…'
+
+
+def split_nodeid(nodeid: str) -> Tuple[List[str], str, str]:
+    """'pkg/test_m.py::TestA::test_x[p]' -> (['pkg', 'test_m.py', 'TestA'], 'test_x', 'p')
+
+    The parametrize id (between the first '[' and the final ']') is returned separately and never becomes part of
+    the test name: it can hold arbitrary data (long strings, changing values), and a changing name breaks the
+    history of a test. It may contain '/' or '::' and is never split.
     """
     bracket = nodeid.find('[')
-    base, params = (nodeid, '') if bracket < 0 else (nodeid[:bracket], nodeid[bracket:])
+    base, params = (nodeid, '') if bracket < 0 else (nodeid[:bracket], nodeid[bracket + 1:])
+    if params.endswith(']'):
+        params = params[:-1]
     path, *rest = base.split('::')
     suites = [part for part in path.split('/') if part]
     if not rest:
-        return suites[:-1], suites[-1] + params if suites else params
-    return suites + rest[:-1], rest[-1] + params
+        return [clip(s, MAX_NAME_LENGTH) for s in suites[:-1]], clip(suites[-1] if suites else '', MAX_NAME_LENGTH), params
+    return [clip(s, MAX_NAME_LENGTH) for s in suites + rest[:-1]], clip(rest[-1], MAX_NAME_LENGTH), params
 
 
 def phase_status(outcome: str) -> TestStatus:

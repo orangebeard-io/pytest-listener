@@ -96,7 +96,7 @@ Open a downloaded trace with `playwright show-trace trace.zip`.
 suite  tests            (directory)
  └ suite  test_cart.py  (module)
     └ suite  TestCart   (class)
-       └ test  test_checkout[chromium]
+       └ test  test_checkout
           ├ step  setup
           │  └ step  fixture: my_database
           ├ step  call
@@ -104,6 +104,9 @@ suite  tests            (directory)
           │     └ step  Verify badge
           └ step  teardown
 ```
+
+Parametrized tests keep the plain function name (`test_checkout`): the parameter id can hold arbitrary data and a
+changing name would break the test's history. The parameters are added to the description (clipped) and logged in full.
 
 A test fails on any setup error, test failure, teardown error or strict xpass. Skipped and xfailed tests are
 `SKIPPED`.
