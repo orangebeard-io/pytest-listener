@@ -1,5 +1,6 @@
 import pytest
 
+from tests.fake_server import FakeOrangebeardServer
 from tests.fakes import FakeOrangebeardClient
 
 pytest_plugins = ['pytester']
@@ -13,6 +14,17 @@ ORANGEBEARD_ENV = ['ORANGEBEARD_ENDPOINT', 'ORANGEBEARD_TOKEN', 'ORANGEBEARD_PRO
 def isolated_orangebeard_env(monkeypatch):
     for name in ORANGEBEARD_ENV:
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture
+def server(monkeypatch):
+    """A fake Orangebeard over HTTP, configured through env vars (which subprocesses inherit)."""
+    fake = FakeOrangebeardServer().start()
+    monkeypatch.setenv('ORANGEBEARD_ENDPOINT', fake.url)
+    monkeypatch.setenv('ORANGEBEARD_TOKEN', '33333333-3333-3333-3333-333333333333')
+    monkeypatch.setenv('ORANGEBEARD_PROJECT', 'demo')
+    yield fake
+    fake.stop()
 
 
 @pytest.fixture

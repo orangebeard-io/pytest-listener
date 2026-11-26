@@ -42,6 +42,7 @@ Configuration is shared with the other Orangebeard listeners. Environment variab
 | Test set         | `ORANGEBEARD_TESTSET`   | `--ob-testset`, `orangebeard_testset`     |
 | Description      | `ORANGEBEARD_DESCRIPTION` | `--ob-description`, `orangebeard_description` |
 | Attributes       | `ORANGEBEARD_ATTRIBUTES` (`key:value;tag`) | `--ob-attribute key:value` (repeatable) |
+| Existing run     | `ORANGEBEARD_TESTRUN_UUID` | see [Several runners](#several-runners-ci-jobs) |
 
 Precedence: command line, then ini file, then environment / `orangebeard.json`. The test set defaults to the name of
 the rootdir. Reporting is active as soon as endpoint, token and project are known. When a run was announced for the
@@ -129,6 +130,43 @@ pytest --screenshot only-on-failure --tracing retain-on-failure --video retain-o
 
 Open a downloaded trace with `playwright show-trace trace.zip`.
 
+## Parallel execution
+
+### One runner (pytest-xdist)
+
+`pytest -n 4` needs no extra configuration: the main process starts the test run, every worker reports its tests into
+it, and the run is finished when all workers are done.
+
+* A suite whose tests are spread over workers is created by each of them; Orangebeard's result tree shows it once.
+* With more than one worker the output directories are shared, so a new file cannot be traced to a test. Only the
+  files in a test's own pytest-playwright folder (the `output_path` fixture) are attached; other files there and
+  `orangebeard_watch_dirs` are ignored. Use `ob.attach()` for those.
+
+### Several runners (CI jobs)
+
+When separate jobs (shards, a job per browser, other test tools) should report into one run, start and finish that run
+outside pytest with `orangebeard-cli`, which is installed with the plugin:
+
+```shell
+# once, before the test jobs (endpoint, token and project come from the environment or orangebeard.json)
+run=$(orangebeard-cli -x start -s "nightly")
+
+# in every test job
+ORANGEBEARD_TESTRUN_UUID=$run pytest tests/shard1
+
+# once, after all test jobs, also when tests failed
+orangebeard-cli -x finish -id "$run"
+```
+
+* With `ORANGEBEARD_TESTRUN_UUID` set, the plugin reports into that run and neither starts nor finishes it. The test
+  set, description and run attributes are the ones given to `orangebeard-cli -x start`.
+* Do not have the variable set for the `finish` command: orangebeard-client 2.9.0 and older then leave the run open.
+* The jobs can use `-n` as well.
+* Tests need different names in different jobs. Two jobs running the same test (for example on two Python versions)
+  report it under one name, which Orangebeard sees as a retry. The browser of pytest-playwright is part of the name.
+* A value that is not a UUID (for example because `start` failed) switches reporting off with a warning;
+  `--orangebeard` makes it an error.
+
 ## How it is reported
 
 ```
@@ -149,7 +187,6 @@ A test fails on any setup error, test failure, teardown error or strict xpass. S
 
 ## Limitations
 
-* `pytest-xdist` (`-n`) is not supported yet; reporting is disabled with a warning when it is used.
 * Fixture finalizers are not reported as separate steps; their output ends up in the `teardown` step.
 * While a phase runs the root logger level is lowered to `orangebeard_log_level` so records reach the reporter.
 

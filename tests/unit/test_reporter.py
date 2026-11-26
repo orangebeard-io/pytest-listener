@@ -232,3 +232,17 @@ def test_html_is_escaped_only_in_detected_markdown(reporter, client):
     reporter.log('**found** <br>', fmt=LogFormat.MARKDOWN)
     assert [l.message for l in client.logs()] == [
         r'**found** \<Page url=x>', 'found <Page url=x>', '**found** <br>']
+
+
+def test_an_existing_run_is_used_instead_of_starting_one(client):
+    run = '44444444-4444-4444-4444-444444444444'
+    params = OrangebeardParameters(token='t', endpoint='e', project='p', testset='s', testrun_uuid=run)
+    reporter = OrangebeardReporter(client, Settings(params=params))
+    reporter.start_run()
+    reporter.start_test('t.py::test_x')
+    reporter.finish_test(Status.PASSED)
+    reporter.finish_run()
+    assert not client.of('start_test_run')
+    assert client.of('start_test')[0][0].testRunUUID == run
+    # the client knows the run is managed elsewhere: this only sends what is still queued
+    assert client.of('finish_test_run')[0][0][0] == run

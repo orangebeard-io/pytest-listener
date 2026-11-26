@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
+from uuid import UUID
 
 import pytest
 from orangebeard.config import AutoConfig
@@ -58,6 +59,14 @@ def _enabled(value: str) -> bool:
     return str(value).strip().lower() not in ('false', '0', 'no', 'off')
 
 
+def _is_uuid(text: str) -> bool:
+    try:
+        UUID(text)
+    except ValueError:
+        return False
+    return True
+
+
 def _parse_attribute(text: str) -> Attribute:
     key, sep, value = text.partition(':')
     return Attribute(key, value) if sep else Attribute(None, text)
@@ -70,9 +79,6 @@ def resolve(config) -> Optional[Settings]:
 
     rootpath = Path(config.rootpath)
     params = AutoConfig.get_config(str(rootpath))
-    # Deprecated (ORANGEBEARD_TESTRUN_UUID): with it the client never finishes the run. An announced run needs no
-    # setting, as starting a run with its test set name claims it.
-    params.testrun_uuid = None
 
     for option, ini, attr in (('ob_endpoint', None, 'endpoint'), ('ob_project', 'orangebeard_project', 'project'),
                               ('ob_testset', 'orangebeard_testset', 'testset'),
@@ -96,6 +102,18 @@ def resolve(config) -> Optional[Settings]:
 
     if not params.testset:
         params.testset = rootpath.name
+
+    # a run that is started and finished elsewhere (e.g. `orangebeard-cli` around several CI jobs)
+    run_uuid = str(params.testrun_uuid or '').strip()
+    if run_uuid and not _is_uuid(run_uuid):
+        # reporting into a run of our own instead would scatter the results over several runs
+        problem = f"ORANGEBEARD_TESTRUN_UUID is not a UUID: '{run_uuid}'"
+        if config.getoption('orangebeard', False):
+            raise pytest.UsageError(problem)
+        config.issue_config_time_warning(
+            pytest.PytestConfigWarning(f'Orangebeard reporting disabled. {problem}'), stacklevel=2)
+        return None
+    params.testrun_uuid = run_uuid or None
 
     report_fixtures = (config.getini('orangebeard_report_fixtures') or 'user').strip().lower()
     if report_fixtures not in REPORT_FIXTURE_MODES:

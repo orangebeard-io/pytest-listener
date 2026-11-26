@@ -89,3 +89,25 @@ def test_playwright_tests_are_named_after_browser_and_user_ids(pytester, fake_cl
     got = sorted(t.testName for t, _ in fake_client.of('start_test'))
     assert got == ['test_numbered[chromium] - iteration #1', 'test_numbered[chromium] - iteration #2',
                    'test_title[chromium-admin]', 'test_title[chromium-guest]']
+
+
+def test_parallel_browser_tests_each_get_their_own_artifacts(pytester, server, browser_available):
+    pytest.importorskip('xdist')
+    pytester.makepyfile('''
+        import pytest
+        from playwright.sync_api import Page
+
+        @pytest.mark.parametrize("title", list("abcd"), ids=list("abcd"))
+        def test_title(page: Page, title):
+            page.set_content(f"<h1>{title}</h1>")
+            page.wait_for_timeout(500)
+    ''')
+    result = pytester.runpytest_subprocess('-p', 'no:cacheprovider', '-n', '2', '--screenshot', 'on',
+                                           '--tracing', 'on', '--video', 'on')
+    result.assert_outcomes(passed=4)
+
+    attachments = server.attachments_by_test()
+    assert sorted(attachments) == [f'test_title[chromium-{title}]' for title in 'abcd']
+    for name, files in attachments.items():  # exactly its own three: none missing, none from a neighbour
+        kinds = sorted(description.split()[0].rstrip(':') for description in files)
+        assert kinds == ['Screenshot', 'Video', 'trace.zip'], (name, files)

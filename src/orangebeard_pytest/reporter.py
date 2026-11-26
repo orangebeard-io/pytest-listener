@@ -68,10 +68,25 @@ class OrangebeardReporter:
     # ------------------------------------------------------------------ run
 
     @_safe
-    def start_run(self):
+    def start_run(self, shared: bool = False):
+        """shared: wait until the server has the run, as other processes need its UUID (see shared_run_uuid)."""
         params = self.settings.params
-        self.run_uuid = self.client.start_test_run(
-            StartTestRun(params.testset, _now(), _describe(params.description), list(params.attributes or [])))
+        if params.testrun_uuid:  # started elsewhere, which also finishes it: the client knows and only flushes
+            self.run_uuid = params.testrun_uuid
+            return
+        run_uuid = self.client.start_test_run(
+            StartTestRun(params.testset, _now(), _describe(params.description), list(params.attributes or [])),
+            direct=shared)
+        if not shared or self.client.uuid_mapping.get(run_uuid):
+            self.run_uuid = run_uuid
+
+    @property
+    def shared_run_uuid(self) -> Optional[str]:
+        """The run's UUID as the server knows it; None when it could not be started. Needs start_run(shared=True)."""
+        if self.settings.params.testrun_uuid:
+            return self.settings.params.testrun_uuid
+        run_uuid = None if self.run_uuid is None else self.client.uuid_mapping.get(self.run_uuid)
+        return str(run_uuid) if run_uuid else None
 
     @_safe
     def finish_run(self):

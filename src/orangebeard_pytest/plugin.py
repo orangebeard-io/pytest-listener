@@ -10,7 +10,7 @@ from orangebeard.entity.LogFormat import LogFormat
 from orangebeard.entity.LogLevel import LogLevel
 from orangebeard.entity.TestStatus import TestStatus
 
-from orangebeard_pytest import artifacts, config as ob_config, context, ids, mapping, markdown
+from orangebeard_pytest import artifacts, config as ob_config, context, ids, mapping, markdown, parallel
 from orangebeard_pytest.reporter import OrangebeardReporter
 from orangebeard_pytest.steps import OrangebeardApi
 
@@ -31,14 +31,17 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line('markers', 'orangebeard: reserved for Orangebeard specific markers')
-    if hasattr(config, 'workerinput'):  # pytest-xdist worker: not supported (yet)
-        return
+    worker = parallel.is_worker(config)
+    if worker and not config.workerinput.get(parallel.RUN_KEY):
+        return  # the main process does not report, or could not start the run
     settings = ob_config.resolve(config)
     if settings is None:
         return
-    if getattr(config.option, 'numprocesses', None):
-        warnings.warn('orangebeard-pytest does not support pytest-xdist (-n) yet; reporting is disabled.',
-                      stacklevel=1)
+    if worker:
+        settings.params.testrun_uuid = config.workerinput[parallel.RUN_KEY]
+    elif parallel.is_distributing(config):
+        controller = parallel.RunController(config, settings, create_client)
+        config.pluginmanager.register(controller, 'orangebeard-controller')
         return
     config.pluginmanager.register(OrangebeardPlugin(config, settings), 'orangebeard-reporter')
 
@@ -87,7 +90,11 @@ class OrangebeardPlugin:
         self.settings = settings
         self.reporter: Optional[OrangebeardReporter] = None
         self.reports = {}
-        self.watchers = [artifacts.DirectoryWatcher(path) for path in settings.watch_dirs]
+        # With several xdist workers the watched directories are shared: a new file may belong to any running test
+        self.shared_directories = parallel.is_worker(config) and config.workerinput.get('workercount', 1) > 1
+        self.watchers = [] if self.shared_directories else [
+            artifacts.DirectoryWatcher(path) for path in settings.watch_dirs]
+        self._watched = []  # (watcher, snapshot) pairs of the running test
         self._previous_context = None
         self.recorder = ids.ParametrizeRecorder(config)
         self.names = {}  # item nodeid -> test name, for parametrized items
@@ -137,6 +144,8 @@ class OrangebeardPlugin:
             return
         self.reporter.finish_run()
         context.deactivate(self._previous_context)
+        if parallel.is_worker(self.config):  # a worker has no terminal: the main process shows its problems
+            self.config.workeroutput[parallel.PROBLEMS_KEY] = list(self.reporter.problems)
 
     def pytest_terminal_summary(self, terminalreporter):
         if self.reporter is None:
@@ -157,13 +166,14 @@ class OrangebeardPlugin:
         reporter.start_test(item.nodeid, self._description(item), self._attributes(item),
                             self.names.get(item.nodeid), parameters)
         self.reports = {}
-        before = [watcher.snapshot() for watcher in self.watchers]
+        self._watched = [(watcher, watcher.snapshot()) for watcher in self.watchers]
         try:
             return (yield)
         finally:
-            for watcher, snapshot in zip(self.watchers, before):
+            for watcher, snapshot in self._watched:
                 for path in watcher.new_files(snapshot):
                     self._attach_file(path)
+            self._watched = []
             reporter.finish_test(mapping.test_status(self.reports) if self.reports else TestStatus.FAILED)
 
     @staticmethod
@@ -246,12 +256,21 @@ class OrangebeardPlugin:
 
     # ------------------------------------------------------------------ fixtures
 
+    @pytest.hookimpl(wrapper=True)
+    def pytest_fixture_setup(self, fixturedef, request):
+        value = yield from self._fixture_step(fixturedef)
+        if self.shared_directories and fixturedef.argname == 'output_path':
+            # pytest-playwright's folder for this test only: the one place its files can safely be taken from
+            watcher = artifacts.DirectoryWatcher(value)
+            self._watched.append((watcher, watcher.snapshot()))
+        return value
+
     def _wants_fixture(self, fixturedef) -> bool:
         mode = self.settings.report_fixtures
         return mode == 'all' or (mode == 'user' and _is_user_fixture(fixturedef))
 
-    @pytest.hookimpl(wrapper=True)
-    def pytest_fixture_setup(self, fixturedef, request):
+    def _fixture_step(self, fixturedef):
+        """Report the fixture's setup as a step, when wanted."""
         reporter = self.reporter
         if reporter is None or not reporter.in_test or not self._wants_fixture(fixturedef):
             return (yield)
