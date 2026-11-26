@@ -42,10 +42,10 @@ Configuration is shared with the other Orangebeard listeners. Environment variab
 | Test set         | `ORANGEBEARD_TESTSET`   | `--ob-testset`, `orangebeard_testset`     |
 | Description      | `ORANGEBEARD_DESCRIPTION` | `--ob-description`, `orangebeard_description` |
 | Attributes       | `ORANGEBEARD_ATTRIBUTES` (`key:value;tag`) | `--ob-attribute key:value` (repeatable) |
-| Existing run     | `ORANGEBEARD_TESTRUN_UUID` | (report into an announced run; finish it with the Orangebeard CLI) |
 
 Precedence: command line, then ini file, then environment / `orangebeard.json`. The test set defaults to the name of
-the rootdir. Reporting is active as soon as endpoint, token and project are known.
+the rootdir. Reporting is active as soon as endpoint, token and project are known. When a run was announced for the
+same test set, it is started and reported into; nothing needs to be configured for that.
 
 Other options:
 

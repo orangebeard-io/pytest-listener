@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* The deprecated `ORANGEBEARD_TESTRUN_UUID` setting is ignored (it left the run unfinished). Announced runs are picked
+  up by their test set name.
+
 ## 0.3.0
 
 * Log messages containing Markdown (tables, bold text, headings, code fences, links) are sent in Markdown format.

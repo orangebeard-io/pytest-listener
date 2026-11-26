@@ -86,6 +86,19 @@ def test_forced_but_incomplete_is_a_usage_error(tmp_path):
         ob_config.resolve(Opts(tmp_path, cli={'orangebeard': True}))
 
 
+@pytest.mark.parametrize('source', ['env', 'orangebeard.json'])
+def test_the_deprecated_test_run_uuid_is_ignored(tmp_path, monkeypatch, source):
+    # the client would leave the run unfinished; announced runs are claimed by test set name instead
+    monkeypatch.setenv('ORANGEBEARD_ENDPOINT', 'https://ob.example')
+    monkeypatch.setenv('ORANGEBEARD_TOKEN', TOKEN)
+    monkeypatch.setenv('ORANGEBEARD_PROJECT', 'proj')
+    if source == 'env':
+        monkeypatch.setenv('ORANGEBEARD_TESTRUN_UUID', TOKEN)
+    else:
+        (tmp_path / 'orangebeard.json').write_text('{"testrun_uuid": "%s"}' % TOKEN)
+    assert ob_config.resolve(Opts(tmp_path)).params.testrun_uuid is None
+
+
 def test_tuning_options_have_defaults_and_can_be_overridden(tmp_path, monkeypatch):
     monkeypatch.setenv('ORANGEBEARD_ENDPOINT', 'https://ob.example')
     monkeypatch.setenv('ORANGEBEARD_TOKEN', TOKEN)

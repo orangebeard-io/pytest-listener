@@ -70,6 +70,9 @@ def resolve(config) -> Optional[Settings]:
 
     rootpath = Path(config.rootpath)
     params = AutoConfig.get_config(str(rootpath))
+    # Deprecated (ORANGEBEARD_TESTRUN_UUID): with it the client never finishes the run. An announced run needs no
+    # setting, as starting a run with its test set name claims it.
+    params.testrun_uuid = None
 
     for option, ini, attr in (('ob_endpoint', None, 'endpoint'), ('ob_project', 'orangebeard_project', 'project'),
                               ('ob_testset', 'orangebeard_testset', 'testset'),
