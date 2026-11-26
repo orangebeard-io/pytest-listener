@@ -7,6 +7,7 @@
   `teardown` steps, fixtures become sub steps, and you can add your own nested steps.
 * Logs: `logging` records, captured stdout/stderr, failure details, skip and xfail reasons.
 * Attachments: anything you attach, plus the screenshots, traces and videos pytest-playwright produces.
+* Parallel runs: pytest-xdist, or several CI jobs sharing one test run (see [Parallel execution](#parallel-execution)).
 * Never gets in the way: when Orangebeard is not configured the plugin does nothing, and reporting problems never
   fail your tests.
 
@@ -16,7 +17,8 @@
 pip install orangebeard-pytest
 ```
 
-The plugin is picked up automatically by pytest (entry point `pytest11`).
+It needs Python 3.10 or newer and pytest 7.4 or newer. pytest picks the plugin up automatically (entry point
+`pytest11`).
 
 ## Configure
 
@@ -42,10 +44,11 @@ Configuration is shared with the other Orangebeard listeners. Environment variab
 | Test set         | `ORANGEBEARD_TESTSET`   | `--ob-testset`, `orangebeard_testset`     |
 | Description      | `ORANGEBEARD_DESCRIPTION` | `--ob-description`, `orangebeard_description` |
 | Attributes       | `ORANGEBEARD_ATTRIBUTES` (`key:value;tag`) | `--ob-attribute key:value` (repeatable) |
+| Reference URL    | `ORANGEBEARD_REFERENCE_URL` (or `referenceUrl` in the file) | (added to the run as attribute `reference_url`) |
 | Existing run     | `ORANGEBEARD_TESTRUN_UUID` | see [Several runners](#several-runners-ci-jobs) |
 
-Precedence: command line, then ini file, then environment / `orangebeard.json`. The test set defaults to the name of
-the rootdir. Reporting is active as soon as endpoint, token and project are known. When a run was announced for the
+Precedence: command line, then ini file, then environment / `orangebeard.json`. Attributes from the file, the
+environment and the command line are combined. The test set defaults to the name of the rootdir. Reporting is active as soon as endpoint, token and project are known. When a run was announced for the
 same test set, it is started and reported into; nothing needs to be configured for that.
 
 Other options:
@@ -57,7 +60,7 @@ Other options:
 | `orangebeard_log_level` (default INFO)  | Minimum `logging` level that is reported                          |
 | `orangebeard_report_fixtures`           | `user` (default), `all` or `none`: fixtures reported as steps      |
 | `orangebeard_max_attachment_mb` (50)    | Larger attachments are skipped (with a warning log)               |
-| `orangebeard_watch_dirs`                | Extra directories; files a test creates there are attached        |
+| `orangebeard_watch_dirs`                | Extra directories; files a test creates there are attached (not with [several workers](#one-runner-pytest-xdist)) |
 | `orangebeard_log_parameters` (true)     | Send test parameter values (see [Parametrized tests](#parametrized-tests)) |
 
 ## Steps, logs and attachments in your tests
@@ -122,7 +125,8 @@ and rendered.
 ## Playwright
 
 Nothing to configure. Everything pytest-playwright writes to its `--output` directory while a test runs (screenshots,
-`trace.zip`, videos) is attached to that test, honouring `--screenshot`, `--tracing` and `--video`:
+`trace.zip`, videos) is attached to that test, honouring `--screenshot`, `--tracing` and `--video` (for parallel
+runs see [Parallel execution](#parallel-execution)):
 
 ```shell
 pytest --screenshot only-on-failure --tracing retain-on-failure --video retain-on-failure
@@ -183,7 +187,8 @@ suite  tests            (directory)
 ```
 
 A test fails on any setup error, test failure, teardown error or strict xpass. Skipped and xfailed tests are
-`SKIPPED`.
+`SKIPPED`. A test's docstring becomes its description, and its markers become tags (except pytest's `parametrize`,
+`skip`, `skipif`, `xfail`, `usefixtures` and `filterwarnings`).
 
 ## Limitations
 
