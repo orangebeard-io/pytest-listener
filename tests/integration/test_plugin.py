@@ -345,3 +345,74 @@ def test_a_single_parametrized_case_keeps_the_plain_name(pytester, fake_client):
     ''')
     run(pytester)
     assert [t.testName for t, _ in fake_client.of('start_test')] == ['test_data']
+
+
+def test_markdown_output_is_reported_as_markdown(pytester, fake_client):
+    pytester.makepyfile('''
+        import logging
+
+        def test_a():
+            print("| a | b |")
+            print("|---|---|")
+            print("| 1 | 2 |")
+            logging.getLogger("x").info("all **good**")
+            logging.getLogger("x").info("nothing special")
+    ''')
+    run(pytester)
+    formats = {log.message.strip().splitlines()[0]: log.logFormat for log in fake_client.logs()}
+    assert formats['| a | b |'] == 'MARKDOWN'
+    assert formats['all **good**'] == 'MARKDOWN'
+    assert formats['nothing special'] == 'PLAIN_TEXT'
+
+
+def test_captured_output_is_logged_once(pytester, fake_client):
+    pytester.makepyfile('''
+        import sys
+        import pytest
+
+        @pytest.fixture
+        def noisy():
+            print("from setup")
+            yield
+            print("from teardown")
+
+        def test_a(noisy):
+            print("from call")
+            print("error from call", file=sys.stderr)
+    ''')
+    run(pytester)
+    messages = [log.message.strip() for log in fake_client.logs()]
+    for expected in ('from setup', 'from call', 'error from call', 'from teardown'):
+        assert messages.count(expected) == 1, (expected, messages)
+    by_message = {log.message.strip(): log for log in fake_client.logs()}
+    assert by_message['from teardown'].stepUUID == fake_client.step_uuid('teardown')
+
+
+def test_markdown_in_a_failure_message_is_rendered_next_to_the_traceback(pytester, fake_client):
+    pytester.makepyfile('''
+        def test_a():
+            raise AssertionError(chr(10).join(["values differ", "", "| expected | actual |", "|---|---|", "| 1 | 2 |"]))
+    ''')
+    run(pytester)
+    errors = [log for log in fake_client.logs() if log.logLevel == LogLevel.ERROR]
+    rendered = [log for log in errors if not log.message.startswith('```')]
+    assert len(rendered) == 1 and rendered[0].logFormat == 'MARKDOWN'
+    assert '| expected | actual |' in rendered[0].message and 'def test_a' not in rendered[0].message
+    assert any(log.message.startswith('```') and 'def test_a' in log.message for log in errors)
+
+
+def test_a_plain_failure_message_is_not_repeated(pytester, fake_client):
+    pytester.makepyfile('def test_a():\n    assert 1 == 2\n')
+    run(pytester)
+    assert len([log for log in fake_client.logs() if log.logLevel == LogLevel.ERROR]) == 1
+
+
+def test_brackets_in_a_markdown_failure_message_survive_rendering(pytester, fake_client):
+    pytester.makepyfile('''
+        def test_a():
+            raise AssertionError("**not found**: <Locator selector='#a'>")
+    ''')
+    run(pytester)
+    errors = [log.message for log in fake_client.logs() if log.logLevel == LogLevel.ERROR]
+    assert any(r"**not found**: \<Locator selector='#a'>" in m for m in errors if not m.startswith('```'))
+    assert any("<Locator selector='#a'>" in m and r'\<Locator' not in m for m in errors if m.startswith('```'))

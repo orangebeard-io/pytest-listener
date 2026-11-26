@@ -10,7 +10,7 @@ from orangebeard.entity.LogFormat import LogFormat
 from orangebeard.entity.LogLevel import LogLevel
 from orangebeard.entity.TestStatus import TestStatus
 
-from orangebeard_pytest import artifacts, config as ob_config, context, ids, mapping
+from orangebeard_pytest import artifacts, config as ob_config, context, ids, mapping, markdown
 from orangebeard_pytest.reporter import OrangebeardReporter
 from orangebeard_pytest.steps import OrangebeardApi
 
@@ -223,12 +223,18 @@ class OrangebeardPlugin:
             return
         self.reports[report.when] = report
         for title, content in report.sections:
+            if not title.endswith(report.when):  # a report repeats the output of the earlier phases
+                continue
             if title.startswith('Captured stdout'):
                 reporter.log(content, LogLevel.INFO)
             elif title.startswith('Captured stderr'):
                 reporter.log(content, LogLevel.WARN)
         if report.failed:
-            reporter.log(f'```\n{report.longreprtext}\n```', LogLevel.ERROR, LogFormat.MARKDOWN)
+            # the traceback has to stay a code block; a message written in Markdown is also shown rendered
+            message = getattr(getattr(report.longrepr, 'reprcrash', None), 'message', None)
+            if message and markdown.looks_like_markdown(message):
+                reporter.log(message, LogLevel.ERROR)
+            reporter.log(markdown.code_block(report.longreprtext), LogLevel.ERROR, LogFormat.MARKDOWN)
         elif report.skipped:
             reason = getattr(report, 'wasxfail', None)
             if reason is not None:

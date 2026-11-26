@@ -103,6 +103,21 @@ test's history. Test names therefore use the ids *you* give, and never raw test 
   `orangebeard_log_parameters = false` to send only pytest's id.
 * Orangebeard's limits are respected: names are clipped to 1024 and descriptions to 4096 characters.
 
+## Markdown in logs
+
+Log messages that contain Markdown are sent as Markdown, so Orangebeard renders them; everything else stays plain
+text. This applies to `logging` records, captured stdout/stderr and `ob.log()`. Recognised are: tables, `**bold**`,
+fenced code blocks, `##` (or deeper) headings, `[links](https://...)`, and a `#` heading combined with a list.
+Constructs that often occur by accident (a single `#` line, plain lists, `**kwargs`, globs) are not enough. Captured
+output is one message per phase, so plain lines printed next to Markdown are rendered as Markdown too.
+
+Orangebeard would treat text like `<Locator ...>` in Markdown as HTML and drop it, so in these messages `<` is
+escaped outside code. HTML such as `<br>` therefore shows as text. In unusual layouts (inline code spanning several
+lines, indented code inside lists or quotes) a backslash can show up before `<`.
+
+Tracebacks are always shown as a code block; when the failure message itself is Markdown it is also logged separately
+and rendered.
+
 ## Playwright
 
 Nothing to configure. Everything pytest-playwright writes to its `--output` directory while a test runs (screenshots,

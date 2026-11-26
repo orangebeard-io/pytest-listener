@@ -201,3 +201,34 @@ def test_run_description_is_clipped(client):
     reporter = OrangebeardReporter(client, Settings(params=params))
     reporter.start_run()
     assert len(client.of('start_test_run')[0][0].description) == 4096
+
+
+def test_markdown_messages_are_sent_as_markdown_and_others_as_plain_text(reporter, client):
+    reporter.start_run()
+    reporter.start_test('t.py::test_x')
+    reporter.log('some **bold** text')
+    reporter.log('just text')
+    assert [l.logFormat for l in client.logs()] == [LogFormat.MARKDOWN, LogFormat.PLAIN_TEXT]
+
+
+def test_an_explicit_format_wins_over_detection(reporter, client):
+    reporter.start_run()
+    reporter.start_test('t.py::test_x')
+    reporter.log('some **bold** text', fmt=LogFormat.PLAIN_TEXT)
+    assert client.logs()[0].logFormat == LogFormat.PLAIN_TEXT
+
+
+def test_parameter_values_are_data_and_stay_plain_text(reporter, client):
+    reporter.start_run()
+    reporter.start_test('t.py::test_x[a]', parameters="text='**bold**'")
+    assert client.logs()[0].logFormat == LogFormat.PLAIN_TEXT
+
+
+def test_html_is_escaped_only_in_detected_markdown(reporter, client):
+    reporter.start_run()
+    reporter.start_test('t.py::test_x')
+    reporter.log('**found** <Page url=x>')
+    reporter.log('found <Page url=x>')
+    reporter.log('**found** <br>', fmt=LogFormat.MARKDOWN)
+    assert [l.message for l in client.logs()] == [
+        r'**found** \<Page url=x>', 'found <Page url=x>', '**found** <br>']

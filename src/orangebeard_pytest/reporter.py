@@ -17,7 +17,7 @@ from orangebeard.entity.StartTestRun import StartTestRun
 from orangebeard.entity.TestStatus import TestStatus
 from orangebeard.entity.TestType import TestType
 
-from orangebeard_pytest import mapping
+from orangebeard_pytest import mapping, markdown
 from orangebeard_pytest.config import Settings
 
 
@@ -102,7 +102,7 @@ class OrangebeardReporter:
             StartTest(self.run_uuid, suite_uuid, name, _now(), TestType.TEST, _describe(description), attributes or None))
         self._steps = []
         if params:
-            self.log(f'Parameters: {params}')
+            self.log(f'Parameters: {params}', fmt=LogFormat.PLAIN_TEXT)  # values are data, never markup
         return self.test_uuid
 
     def _ensure_suites(self, suites: List[str]):
@@ -152,9 +152,14 @@ class OrangebeardReporter:
     # ------------------------------------------------------------------ logs and attachments
 
     @_safe
-    def log(self, message: str, level=LogLevel.INFO, fmt: LogFormat = LogFormat.PLAIN_TEXT):
+    def log(self, message: str, level=LogLevel.INFO, fmt: Optional[LogFormat] = None):
+        """Without an explicit format, messages that look like Markdown are sent as Markdown (with HTML escaped)."""
         if not self.in_test:
             return
+        if fmt is None:
+            fmt = LogFormat.PLAIN_TEXT
+            if markdown.looks_like_markdown(message):
+                fmt, message = LogFormat.MARKDOWN, markdown.escape_html(message)
         self.client.log_batch(Log(self.run_uuid, self.test_uuid, message, mapping.normalize_level(level), fmt,
                                   self.current_step, _now()))
 

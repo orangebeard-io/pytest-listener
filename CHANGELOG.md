@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+* Log messages containing Markdown (tables, bold text, headings, code fences, links) are sent in Markdown format.
+  A failure message written in Markdown is also shown rendered, next to the traceback.
+  Text like `<Locator ...>` is escaped in these messages, so rendering does not drop it as HTML.
+* Fixed: captured stdout/stderr was logged again with every later phase (output of the test showed up twice).
+
 ## 0.2.0
 
 **Test names of parametrized tests change** (Orangebeard history starts anew for the renamed tests).
