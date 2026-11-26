@@ -1,7 +1,11 @@
 """End-to-end with the real pytest-playwright plugin and a real (headless) browser."""
+import os
+
 import pytest
 
 pytest.importorskip('pytest_playwright')
+
+REAL_HOME = os.environ.get('HOME')  # read at import time: the pytester fixture replaces HOME
 
 PAGE_TEST = '''
 import orangebeard_pytest as ob
@@ -25,12 +29,17 @@ def run(pytester, *args):
 
 
 @pytest.fixture
-def browser_available():
+def browser_available(pytester, monkeypatch):
+    # on Linux and macOS Playwright looks for its browsers below HOME, which pytester points at a temp dir
+    if REAL_HOME:
+        monkeypatch.setenv('HOME', REAL_HOME)
     from playwright.sync_api import sync_playwright
     try:
         with sync_playwright() as p:
             p.chromium.launch().close()
     except Exception as error:  # browser not installed
+        if os.environ.get('CI'):  # CI installs the browser: never skip these tests silently there
+            pytest.fail(f'Playwright chromium not available: {error}')
         pytest.skip(f'Playwright chromium not available: {error}')
 
 
