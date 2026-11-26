@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orangebeard-pytest"
-version = "0.3.0"
+version = "0.3.1"
 description = "Orangebeard reporting plugin for pytest (including pytest-playwright)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "pytest>=7.4",
-    "orangebeard-client>=2.8.0",
+    "orangebeard-client>=2.9.0",
 ]
 
 [[project.authors]]

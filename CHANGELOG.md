@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
 
+* Requires orangebeard-client 2.9.0: a tag in `ORANGEBEARD_ATTRIBUTES` (text without a colon, such as `smoke`) is now
+  shown as a tag instead of a key with an empty value.
 * The deprecated `ORANGEBEARD_TESTRUN_UUID` setting is ignored (it left the run unfinished). Announced runs are picked
   up by their test set name.
 

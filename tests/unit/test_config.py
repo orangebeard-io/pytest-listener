@@ -74,6 +74,15 @@ def test_cli_attributes_are_added(tmp_path, monkeypatch):
     assert ('env', 'ci') in pairs and (None, 'plain') in pairs
 
 
+def test_a_tag_from_the_environment_has_no_key(tmp_path, monkeypatch):
+    monkeypatch.setenv('ORANGEBEARD_ENDPOINT', 'https://ob.example')
+    monkeypatch.setenv('ORANGEBEARD_TOKEN', TOKEN)
+    monkeypatch.setenv('ORANGEBEARD_PROJECT', 'proj')
+    monkeypatch.setenv('ORANGEBEARD_ATTRIBUTES', 'smoke;env:ci;')
+    attributes = ob_config.resolve(Opts(tmp_path)).params.attributes
+    assert [(a.key, a.value) for a in attributes] == [(None, 'smoke'), ('env', 'ci')]
+
+
 def test_no_report_flag_disables_even_when_configured(tmp_path, monkeypatch):
     monkeypatch.setenv('ORANGEBEARD_ENDPOINT', 'https://ob.example')
     monkeypatch.setenv('ORANGEBEARD_TOKEN', TOKEN)
