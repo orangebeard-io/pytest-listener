@@ -18,7 +18,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install -e ".[test]"
       - run: python -m playwright install --with-deps chromium
-      - run: python -m pytest
+      - run: python -m pytest -rs
         env:
           ORANGEBEARD_TOKEN: ${{ secrets.ORANGEBEARD_TOKEN }}
           ORANGEBEARD_ATTRIBUTES: python:${{ matrix.python-version }};pipelineUrl:${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
