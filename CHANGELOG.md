@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 * Parallel runs with pytest-xdist (`-n`) are reported: one test run for all workers.
 * `ORANGEBEARD_TESTRUN_UUID` reports into a run that is started and finished outside pytest (`orangebeard-cli`), so
   that several CI jobs share one run. 0.3.1 ignored the setting.
+* Requires orangebeard-client 2.10.0: `orangebeard-cli -x finish` also finishes the run when
+  `ORANGEBEARD_TESTRUN_UUID` is set.
 
 ## 0.3.1
 

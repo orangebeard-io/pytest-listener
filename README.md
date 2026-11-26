@@ -164,7 +164,6 @@ orangebeard-cli -x finish -id "$run"
 
 * With `ORANGEBEARD_TESTRUN_UUID` set, the plugin reports into that run and neither starts nor finishes it. The test
   set, description and run attributes are the ones given to `orangebeard-cli -x start`.
-* Do not have the variable set for the `finish` command: orangebeard-client 2.9.0 and older then leave the run open.
 * The jobs can use `-n` as well.
 * Tests need different names in different jobs. Two jobs running the same test (for example on two Python versions)
   report it under one name, which Orangebeard sees as a retry. The browser of pytest-playwright is part of the name.

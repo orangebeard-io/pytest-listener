@@ -1,4 +1,7 @@
 """Several processes reporting into one run that is started and finished outside pytest (orangebeard-cli)."""
+import subprocess
+import sys
+
 RUN = '44444444-4444-4444-4444-444444444444'
 
 TESTS = '''
@@ -26,6 +29,16 @@ def test_tests_are_reported_into_the_given_run_without_starting_or_finishing_it(
     # everything is sent before the process ends, so the run can be finished right after it
     assert len(server.of('/test/finish/')) == 2
     assert 'from a' in str([r['body'] for r in server.of('/log')])
+
+
+def test_the_cli_finishes_the_run_with_the_variable_still_set(server, monkeypatch, tmp_path):
+    """A CI job often exports the variable for all its commands, including the final `orangebeard-cli -x finish`."""
+    monkeypatch.setenv('ORANGEBEARD_TESTRUN_UUID', RUN)
+    done = subprocess.run([sys.executable, '-m', 'orangebeard.Cli', '-x', 'finish', '-id', RUN], cwd=tmp_path,
+                          capture_output=True, text=True, timeout=60)
+
+    assert done.returncode == 0, done.stderr
+    assert len(server.of('/test-run/finish', RUN)) == 1
 
 
 def test_a_value_that_is_no_uuid_switches_reporting_off_with_a_warning(pytester, server, monkeypatch):
