@@ -20,6 +20,7 @@ INI_OPTIONS = [
     ('orangebeard_report_fixtures', 'string', 'Report fixtures as steps: all, user (default) or none'),
     ('orangebeard_max_attachment_mb', 'string', 'Attachments larger than this are skipped (default: 50)'),
     ('orangebeard_watch_dirs', 'linelist', 'Extra directories whose new files are attached to the test'),
+    ('orangebeard_log_parameters', 'string', 'Send the values of test parameters (default: true)'),
 ]
 
 
@@ -30,6 +31,7 @@ class Settings:
     report_fixtures: str = 'user'
     max_attachment_bytes: int = 50 * 1024 * 1024
     watch_dirs: List[Path] = field(default_factory=list)
+    log_parameters: bool = True
 
     @property
     def report_url(self) -> str:
@@ -50,6 +52,10 @@ def add_options(parser) -> None:
                     help="Test run attribute 'key:value' or 'tag' (repeatable).")
     for name, kind, help_text in INI_OPTIONS:
         parser.addini(name, help_text, type=kind, default=[] if kind == 'linelist' else '')
+
+
+def _enabled(value: str) -> bool:
+    return str(value).strip().lower() not in ('false', '0', 'no', 'off')
 
 
 def _parse_attribute(text: str) -> Attribute:
@@ -104,4 +110,5 @@ def resolve(config) -> Optional[Settings]:
         watch_dirs.append(Path(invocation) / playwright_output)
 
     return Settings(params=params, log_level=log_level, report_fixtures=report_fixtures,
-                    max_attachment_bytes=int(max_mb * 1024 * 1024), watch_dirs=watch_dirs)
+                    max_attachment_bytes=int(max_mb * 1024 * 1024), watch_dirs=watch_dirs,
+                    log_parameters=_enabled(config.getini('orangebeard_log_parameters')))

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0
+
+**Test names of parametrized tests change** (Orangebeard history starts anew for the renamed tests).
+
+* Ids you give (`ids=[...]`, an `ids` function, `pytest.param(id=...)`, scenario ids from `pytest_generate_tests`,
+  fixture `ids`, the `pytest_make_parametrize_id` hook) are used in the test name, pytest style: `test_login[admin]`.
+  pytest-playwright's browser is included: `test_login[chromium]`.
+* ` - iteration #n` is only added where cases have no usable id (or duplicate ids). `n` no longer depends on how tests
+  are selected, also not when selecting one case by node id.
+* The real parameter values (`user='alice', retries=3`) are logged and added to the description instead of pytest's
+  id. New ini option `orangebeard_log_parameters` (default `true`) switches that off.
+
 ## 0.1.1
 
 * Parametrize ids are no longer part of the test name (long or changing data was rejected by Orangebeard and broke

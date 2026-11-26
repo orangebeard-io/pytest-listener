@@ -100,3 +100,12 @@ def test_tuning_options_have_defaults_and_can_be_overridden(tmp_path, monkeypatc
     assert settings.log_level == 10
     assert settings.report_fixtures == 'none'
     assert settings.max_attachment_bytes == 1024 * 1024
+
+
+def test_parameter_logging_is_on_by_default_and_can_be_switched_off(tmp_path, monkeypatch):
+    monkeypatch.setenv('ORANGEBEARD_ENDPOINT', 'https://ob.example')
+    monkeypatch.setenv('ORANGEBEARD_TOKEN', TOKEN)
+    monkeypatch.setenv('ORANGEBEARD_PROJECT', 'proj')
+    assert ob_config.resolve(Opts(tmp_path)).log_parameters is True
+    for off in ('false', 'False', '0', 'no', 'off'):
+        assert ob_config.resolve(Opts(tmp_path, ini={'orangebeard_log_parameters': off})).log_parameters is False

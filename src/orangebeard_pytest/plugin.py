@@ -10,7 +10,7 @@ from orangebeard.entity.LogFormat import LogFormat
 from orangebeard.entity.LogLevel import LogLevel
 from orangebeard.entity.TestStatus import TestStatus
 
-from orangebeard_pytest import artifacts, config as ob_config, context, mapping
+from orangebeard_pytest import artifacts, config as ob_config, context, ids, mapping
 from orangebeard_pytest.reporter import OrangebeardReporter
 from orangebeard_pytest.steps import OrangebeardApi
 
@@ -89,14 +89,38 @@ class OrangebeardPlugin:
         self.reports = {}
         self.watchers = [artifacts.DirectoryWatcher(path) for path in settings.watch_dirs]
         self._previous_context = None
-        self.iterations = {}
+        self.recorder = ids.ParametrizeRecorder(config)
+        self.names = {}  # item nodeid -> test name, for parametrized items
 
-    # ------------------------------------------------------------------ run
+    # ------------------------------------------------------------------ collection
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_generate_tests(self, metafunc):
+        return (yield from self.recorder.recording(metafunc))
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_collection_modifyitems(self, session, config, items):
-        # before -k/-m deselect anything: iteration numbers must not depend on the selection
-        self.iterations = mapping.iteration_numbers([item.nodeid for item in items])
+        # before -k/-m deselect anything, so that the fallback numbering does not depend on the selection
+        fallback = mapping.iteration_numbers([item.nodeid for item in items])
+        for item in items:
+            try:
+                name = self._name(item, fallback.get(item.nodeid))
+            except Exception:  # keep the plain function name
+                continue
+            if name:
+                self.names[item.nodeid] = name
+
+    def _name(self, item, fallback_number: Optional[int]) -> Optional[str]:
+        function_name = mapping.split_nodeid(item.nodeid)[1]
+        dimensions = self.recorder.dimensions(item)
+        if dimensions is not None:
+            return mapping.display_name(function_name, dimensions)
+        if fallback_number is not None:
+            unknown = mapping.Dimension(size=max(fallback_number, 2), index=fallback_number - 1)
+            return mapping.display_name(function_name, [unknown])
+        return None
+
+    # ------------------------------------------------------------------ run
 
     def pytest_sessionstart(self, session):
         try:
@@ -129,8 +153,9 @@ class OrangebeardPlugin:
         reporter = self.reporter
         if reporter is None:
             return (yield)
+        parameters = ids.parameter_text(item) if self.settings.log_parameters else None
         reporter.start_test(item.nodeid, self._description(item), self._attributes(item),
-                            self.iterations.get(item.nodeid))
+                            self.names.get(item.nodeid), parameters)
         self.reports = {}
         before = [watcher.snapshot() for watcher in self.watchers]
         try:

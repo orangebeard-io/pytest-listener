@@ -69,7 +69,7 @@ def test_run_lifecycle_and_structure(pytester, fake_client):
     assert fake_client.finish_status_of_test('test_skip') == Status.SKIPPED
     assert fake_client.finish_status_of_test('test_xfail') == Status.SKIPPED
     params = [(t.testName, t.description) for t, _ in fake_client.of('start_test') if t.testName.startswith('test_param')]
-    assert params == [('test_param - iteration #1', 'Parameters: 1'), ('test_param - iteration #2', 'Parameters: 2')]
+    assert params == [('test_param - iteration #1', 'Parameters: n=1'), ('test_param - iteration #2', 'Parameters: n=2')]
     assert not any('[' in t.testName for t, _ in fake_client.of('start_test'))
     assert 'test_pass' in [t.testName for t, _ in fake_client.of('start_test')]  # no suffix without iterations
     assert fake_client.finish_status_of_test('test_in_class') == Status.PASSED
@@ -273,6 +273,7 @@ def test_attach_api_and_fixture(pytester, fake_client):
 
 def test_files_produced_in_the_playwright_output_dir_are_attached(pytester, fake_client):
     """pytest-playwright writes screenshots/traces/videos below --output; we attach what a test produced."""
+    pytest.importorskip('pytest_playwright')  # provides the --output option
     pytester.makepyfile('''
         import pathlib
 

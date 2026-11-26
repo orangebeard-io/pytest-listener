@@ -57,6 +57,7 @@ Other options:
 | `orangebeard_report_fixtures`           | `user` (default), `all` or `none`: fixtures reported as steps      |
 | `orangebeard_max_attachment_mb` (50)    | Larger attachments are skipped (with a warning log)               |
 | `orangebeard_watch_dirs`                | Extra directories; files a test creates there are attached        |
+| `orangebeard_log_parameters` (true)     | Send test parameter values (see [Parametrized tests](#parametrized-tests)) |
 
 ## Steps, logs and attachments in your tests
 
@@ -79,6 +80,29 @@ def login(page): ...
 The same functions are available through the `orangebeard` fixture. Outside an Orangebeard run they do nothing, so
 your tests also work without the plugin configured.
 
+## Parametrized tests
+
+Orangebeard treats identically named tests as retries of one test, and a name that changes with the data breaks a
+test's history. Test names therefore use the ids *you* give, and never raw test data:
+
+| Parametrization                                             | Reported as                                     |
+|-------------------------------------------------------------|-------------------------------------------------|
+| `ids=["admin", "guest"]`, `pytest.param(..., id="admin")`   | `test_login[admin]`, `test_login[guest]`        |
+| an `ids=` function, `pytest_make_parametrize_id`, scenario ids, fixture `ids` | `test_login[<id>]`            |
+| no ids, several cases                                       | `test_login - iteration #1`, `... #2`           |
+| ids for one `parametrize`, none for another one             | `test_login[admin] - iteration #2`              |
+| duplicate ids                                               | `test_login[admin] - iteration #1`, `... #2`    |
+| pytest-playwright (the browser is a parameter)              | `test_login[chromium]`, `test_login[chromium-admin]` |
+| no ids, a single case                                       | `test_login`                                    |
+
+* See [pytest's documentation](https://docs.pytest.org/en/stable/example/parametrize.html#different-options-for-test-ids)
+  for the ways to set ids. Ids longer than 100 characters are treated as data and not used.
+* `n` is the position of the case among all combinations, so it does not depend on `-k`, `-m` or node-id selection.
+* The parameter **values** (`user='alice', retries=3`) are logged in full and added to the description (clipped to
+  2000 characters). **This includes anything secret you pass as a parameter**; set
+  `orangebeard_log_parameters = false` to send only pytest's id.
+* Orangebeard's limits are respected: names are clipped to 1024 and descriptions to 4096 characters.
+
 ## Playwright
 
 Nothing to configure. Everything pytest-playwright writes to its `--output` directory while a test runs (screenshots,
@@ -96,7 +120,7 @@ Open a downloaded trace with `playwright show-trace trace.zip`.
 suite  tests            (directory)
  └ suite  test_cart.py  (module)
     └ suite  TestCart   (class)
-       └ test  test_checkout - iteration #1   (when parametrized)
+       └ test  test_checkout[chromium]
           ├ step  setup
           │  └ step  fixture: my_database
           ├ step  call
@@ -104,14 +128,6 @@ suite  tests            (directory)
           │     └ step  Verify badge
           └ step  teardown
 ```
-
-Parametrized tests: the parameter id can hold arbitrary data and a changing name would break a test's history, so it
-never becomes part of the name. A function that runs more than once with different data is reported as
-`test_checkout - iteration #1`, `... #2`, ... (Orangebeard treats identical names as retries of one test). The
-numbers follow the collection order and do not change with `-k`/`-m`; a function with a single case keeps its plain
-name. The parameters are added to the description (clipped to 2000 characters) and logged in full. Descriptions are
-clipped to Orangebeard's 4096 character limit and names to 1024. Selecting one case by node id
-(`pytest file.py::test_x[a]`) collects only that case, so it is reported without an iteration number.
 
 A test fails on any setup error, test failure, teardown error or strict xpass. Skipped and xfailed tests are
 `SKIPPED`.
