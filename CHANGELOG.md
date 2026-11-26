@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 * Log messages containing Markdown (tables, bold text, headings, code fences, links) are sent in Markdown format.
   A failure message written in Markdown is also shown rendered, next to the traceback.
